@@ -1,32 +1,32 @@
 Metadata-Version: 1.1
 Name: py
-Version: 1.4.27
+Version: 1.4.32
 Summary: library with cross-python path, ini-parsing, io, code, log facilities
 Home-page: http://pylib.readthedocs.org/
 Author: holger krekel, Ronny Pfannschmidt, Benjamin Peterson and others
 Author-email: pytest-dev@python.org
 License: MIT license
-Description: .. image:: https://drone.io/bitbucket.org/pytest-dev/py/status.png
-           :target: https://drone.io/bitbucket.org/pytest-dev/py/latest
-        .. image:: https://pypip.in/v/py/badge.png
-           :target: https://pypi.python.org/pypi/py
+Description: .. image:: https://img.shields.io/pypi/pyversions/pytest.svg
+          :target: https://pypi.org/project/py
+        .. image:: https://img.shields.io/travis/pytest-dev/py.svg
+           :target: https://travis-ci.org/pytest-dev/py
         
         The py lib is a Python development support library featuring
         the following tools and modules:
         
-        * py.path:  uniform local and svn path objects
-        * py.apipkg:  explicit API control and lazy-importing
-        * py.iniconfig:  easy parsing of .ini files
-        * py.code: dynamic code generation and introspection
+        * ``py.path``:  uniform local and svn path objects
+        * ``py.apipkg``:  explicit API control and lazy-importing
+        * ``py.iniconfig``:  easy parsing of .ini files
+        * ``py.code``: dynamic code generation and introspection
         
         NOTE: prior to the 1.4 release this distribution used to
         contain py.test which is now its own package, see http://pytest.org
         
         For questions and more information please visit http://pylib.readthedocs.org
         
-        Bugs and issues: http://bitbucket.org/pytest-dev/py/issues/
+        Bugs and issues: https://github.com/pytest-dev/py
         
-        Authors: Holger Krekel and others, 2004-2015
+        Authors: Holger Krekel and others, 2004-2016
         
 Platform: unix
 Platform: linux

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import with_statement
+import time
 import py
 import pytest
 import os, sys
@@ -15,6 +16,8 @@ win32only = py.test.mark.skipif(
 skiponwin32 = py.test.mark.skipif(
         "sys.platform == 'win32' or getattr(os, '_name', None) == 'nt'")
 
+ATIME_RESOLUTION = 0.01
+
 
 def pytest_funcarg__path1(request):
     def setup():
@@ -26,6 +29,14 @@ def pytest_funcarg__path1(request):
         assert path1.join("samplefile").check()
     return request.cached_setup(setup, teardown, scope="session")
 
+def pytest_funcarg__fake_fspath_obj(request):
+    class FakeFSPathClass(object):
+        def __init__(self, path):
+            self._path = path
+        def __fspath__(self):
+            return self._path
+    return FakeFSPathClass("this/is/a/fake/path")
+
 class TestLocalPath(common.CommonFSTests):
     def test_join_normpath(self, tmpdir):
         assert tmpdir.join(".") == tmpdir
@@ -33,6 +44,12 @@ class TestLocalPath(common.CommonFSTests):
         assert p == tmpdir
         p = tmpdir.join("..//%s/" % tmpdir.basename)
         assert p == tmpdir
+
+    @skiponwin32
+    def test_dirpath_abs_no_abs(self, tmpdir):
+        p = tmpdir.join('foo')
+        assert p.dirpath('/bar') == tmpdir.join('bar')
+        assert tmpdir.dirpath('/bar', abs=True) == py.path.local('/bar')
 
     def test_gethash(self, tmpdir):
         md5 = py.builtin._tryimport('md5', 'hashlib').md5
@@ -109,7 +126,8 @@ class TestLocalPath(common.CommonFSTests):
             assert p.check()
 
     @pytest.mark.xfail("sys.version_info < (2,6) and sys.platform == 'win32'")
-    def test_tilde_expansion(self):
+    def test_tilde_expansion(self, monkeypatch, tmpdir):
+        monkeypatch.setenv("HOME", str(tmpdir))
         p = py.path.local("~", expanduser=True)
         assert p == os.path.expanduser("~")
 
@@ -290,6 +308,14 @@ class TestLocalPath(common.CommonFSTests):
         assert py.path.local.sysfind(name, paths=[]) is None
         x2 = py.path.local.sysfind(name, paths=[x.dirpath()])
         assert x2 == x
+
+    def test_fspath_protocol_other_class(self, fake_fspath_obj):
+        # py.path is always absolute
+        py_path = py.path.local(fake_fspath_obj)
+        str_path = fake_fspath_obj.__fspath__()
+        assert py_path.check(endswith=str_path)
+        assert py_path.join(fake_fspath_obj).strpath == os.path.join(
+                py_path.strpath, str_path)
 
 
 class TestExecutionOnWindows:
@@ -709,9 +735,9 @@ class TestPOSIXLocalPath:
         # we could wait here but timer resolution is very
         # system dependent
         path.read()
-        time.sleep(0.01)
+        time.sleep(ATIME_RESOLUTION)
         atime2 = path.atime()
-        time.sleep(0.01)
+        time.sleep(ATIME_RESOLUTION)
         duration = time.time() - now
         assert (atime2-atime1) <= duration
 
@@ -764,7 +790,8 @@ class TestPOSIXLocalPath:
                 x.chmod(y)
 
     def test_copy_archiving(self, tmpdir):
-        f = tmpdir.ensure("a", "file1")
+        unicode_fn = u"something-\342\200\223.txt"
+        f = tmpdir.ensure("a", unicode_fn)
         a = f.dirpath()
         oldmode = f.stat().mode
         newmode = oldmode ^ 1
@@ -772,6 +799,34 @@ class TestPOSIXLocalPath:
         b = tmpdir.join("b")
         a.copy(b, mode=True)
         assert b.join(f.basename).stat().mode == newmode
+
+    def test_copy_stat_file(self, tmpdir):
+        src = tmpdir.ensure('src')
+        dst = tmpdir.join('dst')
+        # a small delay before the copy
+        time.sleep(ATIME_RESOLUTION)
+        src.copy(dst, stat=True)
+        oldstat = src.stat()
+        newstat = dst.stat()
+        assert oldstat.mode == newstat.mode
+        assert (dst.atime() - src.atime()) < ATIME_RESOLUTION
+        assert (dst.mtime() - src.mtime()) < ATIME_RESOLUTION
+
+    def test_copy_stat_dir(self, tmpdir):
+        test_files = ['a', 'b', 'c']
+        src = tmpdir.join('src')
+        for f in test_files:
+            src.join(f).write(f, ensure=True)
+        dst = tmpdir.join('dst')
+        # a small delay before the copy
+        time.sleep(ATIME_RESOLUTION)
+        src.copy(dst, stat=True)
+        for f in test_files:
+            oldstat = src.join(f).stat()
+            newstat = dst.join(f).stat()
+            assert (newstat.atime - oldstat.atime) < ATIME_RESOLUTION
+            assert (newstat.mtime - oldstat.mtime) < ATIME_RESOLUTION
+            assert oldstat.mode == newstat.mode
 
     @failsonjython
     def test_chown_identity(self, path1):

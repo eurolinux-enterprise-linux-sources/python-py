@@ -1,0 +1,21 @@
+diff --git a/testing/path/common.py b/testing/path/common.py
+index 274ced4..7945cd7 100644
+--- a/testing/path/common.py
++++ b/testing/path/common.py
+@@ -444,12 +444,14 @@ class CommonFSTests(object):
+             from py._path.common import fspath
+         assert fspath(path1) == path1.strpath
+ 
+-    @py.test.mark.skip("sys.version_info < (3,6)")
++    @py.test.mark.skipif(sys.version_info < (3,6),
++                        reason="requires Python 3.6")
+     def test_fspath_open(self, path1):
+         f = path1.join('opentestfile')
+         open(f)
+ 
+-    @py.test.mark.skip("sys.version_info < (3,6)")
++    @py.test.mark.skipif(sys.version_info < (3,6),
++                        reason="requires Python 3.6")
+     def test_fspath_fsencode(self, path1):
+         from os import fsencode
+         assert fsencode(path1) == fsencode(path1.strpath)

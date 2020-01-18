@@ -1,3 +1,51 @@
+
+1.4.32
+====================================================================
+
+- fix issue70: added ability to copy all stat info in py.path.local.copy.
+
+- make TerminalWriter.fullwidth a property.  This results in the correct
+  value when the terminal gets resized.
+
+- update supported html tags to include recent additions.
+  Thanks Denis Afonso for the PR.
+
+- Remove internal code in ``Source.compile`` meant to support earlier Python 3 versions that produced the side effect
+  of leaving ``None`` in ``sys.modules`` when called (see pytest-dev/pytest#2103).
+  Thanks Bruno Oliveira for the PR.
+
+1.4.31
+==================================================
+
+- fix local().copy(dest, mode=True) to also work
+  with unicode.
+
+- pass better error message with svn EEXIST paths
+
+1.4.30
+==================================================
+
+- fix issue68 an assert with a  multiline list comprehension 
+  was not reported correctly. Thanks Henrik Heibuerger.
+
+
+1.4.29
+==================================================
+
+- fix issue55: revert a change to the statement finding algorithm
+  which is used by pytest for generating tracebacks.
+  Thanks Daniel Hahler for initial analysis.
+
+- fix pytest issue254 for when traceback rendering can't
+  find valid source code.  Thanks Ionel Cristian Maries.
+
+
+1.4.28
+==================================================
+
+- fix issue64 -- dirpath regression when "abs=True" is passed.
+  Thanks Gilles Dartiguelongue.
+
 1.4.27
 ==================================================
 

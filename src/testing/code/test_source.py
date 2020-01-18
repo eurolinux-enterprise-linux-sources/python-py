@@ -224,7 +224,6 @@ class TestSourceParsingAndCompiling:
         assert len(source) == 6
         assert source.getstatementrange(2) == (1, 4)
 
-    @py.test.mark.xfail
     def test_getstatementrange_bug2(self):
         source = Source("""\
             assert (
@@ -239,6 +238,18 @@ class TestSourceParsingAndCompiling:
         """)
         assert len(source) == 9
         assert source.getstatementrange(5) == (0, 9)
+
+    def test_getstatementrange_ast_issue58(self):
+        source = Source("""\
+
+            def test_some():
+                for a in [a for a in
+                    CAUSE_ERROR]: pass
+
+            x = 3
+        """)
+        assert getstatement(2, source).lines == source.lines[2:3]
+        assert getstatement(3, source).lines == source.lines[3:4]
 
     @py.test.mark.skipif("sys.version_info < (2,6)")
     def test_getstatementrange_out_of_bounds_py3(self):
@@ -508,6 +519,15 @@ comment 4
         assert str(getstatement(line, source)) == '    assert False'
     assert str(getstatement(10, source)) == '"""'
 
+def test_comment_in_statement():
+    source = '''test(foo=1,
+    # comment 1
+    bar=2)
+'''
+    for line in range(1,3):
+        assert str(getstatement(line, source)) == \
+               'test(foo=1,\n    # comment 1\n    bar=2)'
+
 def test_single_line_else():
     source = getstatement(1, "if False: 2\nelse: 3")
     assert str(source) == "else: 3"
@@ -515,6 +535,13 @@ def test_single_line_else():
 def test_single_line_finally():
     source = getstatement(1, "try: 1\nfinally: 3")
     assert str(source) == "finally: 3"
+
+def test_issue55():
+    source = ('def round_trip(dinp):\n  assert 1 == dinp\n'
+              'def test_rt():\n  round_trip("""\n""")\n')
+    s = getstatement(3, source)
+    assert str(s) == '  round_trip("""\n""")'
+
 
 def XXXtest_multiline():
     source = getstatement(0, """\

@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import sys, os, re, atexit, io
 import py
 from py._path import common
-from py._path.common import iswin32
+from py._path.common import iswin32, fspath
 from stat import S_ISLNK, S_ISDIR, S_ISREG
 
 from os.path import abspath, normpath, isabs, exists, isdir, isfile, islink, dirname
@@ -147,22 +147,25 @@ class LocalPath(FSBase):
         """
         if path is None:
             self.strpath = py.error.checked_call(os.getcwd)
-        elif isinstance(path, common.PathBase):
-            self.strpath = path.strpath
-        elif isinstance(path, py.builtin._basestring):
+        else:
+            try:
+                path = fspath(path)
+            except TypeError:
+                raise ValueError("can only pass None, Path instances "
+                                 "or non-empty strings to LocalPath")
             if expanduser:
                 path = os.path.expanduser(path)
             self.strpath = abspath(path)
-        else:
-            raise ValueError("can only pass None, Path instances "
-                             "or non-empty strings to LocalPath")
 
     def __hash__(self):
         return hash(self.strpath)
 
     def __eq__(self, other):
-        s1 = self.strpath
-        s2 = getattr(other, "strpath", other)
+        s1 = fspath(self)
+        try:
+            s2 = fspath(other)
+        except TypeError:
+            return False
         if iswin32:
             s1 = s1.lower()
             try:
@@ -175,15 +178,15 @@ class LocalPath(FSBase):
         return not (self == other)
 
     def __lt__(self, other):
-        return self.strpath < getattr(other, "strpath", other)
+        return fspath(self) < fspath(other)
 
     def __gt__(self, other):
-        return self.strpath > getattr(other, "strpath", other)
+        return fspath(self) > fspath(other)
 
     def samefile(self, other):
         """ return True if 'other' references the same file as 'self'.
         """
-        other = getattr(other, "strpath", other)
+        other = fspath(other)
         if not isabs(other):
             other = abspath(other)
         if self == other:
@@ -304,13 +307,15 @@ class LocalPath(FSBase):
                         raise ValueError("invalid part specification %r" % name)
         return res
 
-    def dirpath(self, *args):
+    def dirpath(self, *args, **kwargs):
         """ return the directory path joined with any given path arguments.  """
-        path = object.__new__(self.__class__)
-        path.strpath = dirname(self.strpath)
-        if args:
-            path = path.join(*args)
-        return path
+        if not kwargs:
+            path = object.__new__(self.__class__)
+            path.strpath = dirname(self.strpath)
+            if args:
+                path = path.join(*args)
+            return path
+        return super(LocalPath, self).dirpath(*args, **kwargs)
 
     def join(self, *args, **kwargs):
         """ return a new path by appending all 'args' as path
@@ -318,7 +323,7 @@ class LocalPath(FSBase):
         of the args is an absolute path.
         """
         sep = self.sep
-        strargs = [getattr(arg, "strpath", arg) for arg in args]
+        strargs = [fspath(arg) for arg in args]
         strpath = self.strpath
         if kwargs.get('abs'):
             newargs = []
@@ -400,15 +405,22 @@ class LocalPath(FSBase):
         """ return last modification time of the path. """
         return self.stat().mtime
 
-    def copy(self, target, mode=False):
-        """ copy path to target."""
+    def copy(self, target, mode=False, stat=False):
+        """ copy path to target.
+
+            If mode is True, will copy copy permission from path to target.
+            If stat is True, copy permission, last modification
+            time, last access time, and flags from path to target.
+        """
         if self.check(file=1):
             if target.check(dir=1):
                 target = target.join(self.basename)
             assert self!=target
             copychunked(self, target)
             if mode:
-                copymode(self, target)
+                copymode(self.strpath, target.strpath)
+            if stat:
+                copystat(self, target)
         else:
             def rec(p):
                 return p.check(link=0)
@@ -424,11 +436,13 @@ class LocalPath(FSBase):
                 elif x.check(dir=1):
                     newx.ensure(dir=1)
                 if mode:
-                    copymode(x, newx)
+                    copymode(x.strpath, newx.strpath)
+                if stat:
+                    copystat(x, newx)
 
     def rename(self, target):
         """ rename this path to target. """
-        target = getattr(target, "strpath", target)
+        target = fspath(target)
         return py.error.checked_call(os.rename, self.strpath, target)
 
     def dump(self, obj, bin=1):
@@ -442,7 +456,7 @@ class LocalPath(FSBase):
     def mkdir(self, *args):
         """ create & return the directory joined with args. """
         p = self.join(*args)
-        py.error.checked_call(os.mkdir, getattr(p, "strpath", p))
+        py.error.checked_call(os.mkdir, fspath(p))
         return p
 
     def write_binary(self, data, ensure=False):
@@ -588,7 +602,7 @@ class LocalPath(FSBase):
         if rec:
             for x in self.visit(rec=rec):
                 py.error.checked_call(os.chmod, str(x), mode)
-        py.error.checked_call(os.chmod, str(self), mode)
+        py.error.checked_call(os.chmod, self.strpath, mode)
 
     def pypkgpath(self):
         """ return the Python package path by looking for the last
@@ -885,7 +899,12 @@ class LocalPath(FSBase):
     make_numbered_dir = classmethod(make_numbered_dir)
 
 def copymode(src, dest):
-    py.std.shutil.copymode(str(src), str(dest))
+    """ copy permission from src to dst. """
+    py.std.shutil.copymode(src, dest)
+
+def copystat(src, dest):
+    """ copy permission,  last modification time, last access time, and flags from src to dst."""
+    py.std.shutil.copystat(str(src), str(dest))
 
 def copychunked(src, dest):
     chunksize = 524288 # half a meg of bytes

@@ -9,23 +9,22 @@
 # we have a circular (build) dependency with the (new) pytest package
 # when generating the docs or running the testsuite
 %global with_docs 1
-%if 0%{?rhel} > 6
-%global run_check 0
-%else
 %global run_check 1
-%endif
 
 %global pytest_version 2.3.1
 
 Name:           python-py
-Version:        1.4.27
+Version:        1.4.32
 Release:        1%{?dist}
 Summary:        Library with cross-python path, ini-parsing, io, code, log facilities
 Group:          Development/Languages
 License:        MIT and Public Domain
 #               main package: MIT, except: doc/style.css: Public Domain
-URL:            http://pylib.readthedocs.org/
-Source:         http://pypi.python.org/packages/source/p/py/py-%{version}.tar.gz
+URL:            http://py.readthedocs.io
+Source:         https://files.pythonhosted.org/packages/source/p/py/py-%{version}.tar.gz
+# Replace the decorator for skipping the Python 3.6 tests with a compatible one for
+# the RHEL 7 version of pytest
+Patch0:         skip-python3.6-tests.patch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
 BuildRequires:  python-devel
@@ -52,6 +51,7 @@ BuildRequires:  python3-pytest >= %{pytest_version}
 # needed by the testsuite
 BuildRequires:  subversion
 
+Provides: python2-py = %{version}-%{release}
 
 %description
 The py lib is a Python development support library featuring the
@@ -82,6 +82,7 @@ following tools and modules:
 
 %prep
 %setup -q -n py-%{version}
+%patch0 -p1
 
 # remove shebangs and fix permissions
 find -type f -a \( -name '*.py' -o -name 'py.*' \) \
@@ -145,7 +146,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
-%doc CHANGELOG LICENSE README.txt
+%doc CHANGELOG LICENSE README.rst
 %if 0%{?with_docs}
 %doc doc/_build/html
 %endif # with_docs
@@ -155,7 +156,7 @@ rm -rf %{buildroot}
 %if 0%{?with_python3}
 %files -n python3-py
 %defattr(-,root,root,-)
-%doc CHANGELOG LICENSE README.txt
+%doc CHANGELOG LICENSE README.rst
 %if 0%{?with_docs}
 %doc doc/_build/html
 %endif # with_docs
@@ -164,6 +165,10 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Thu Feb 09 2017 Charalampos Stratakis <cstratak@redhat.com> - 1.4.32-1
+- Updated to 1.4.32
+Resolves: rhbz#1389113
+
 * Mon May 11 2015 Matej Stuchlik <mstuchli@redhat.com> - 1.4.27-1
 - Updated to 1.4.27
 Resolves: rhbz#1219480

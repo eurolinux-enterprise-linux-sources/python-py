@@ -600,7 +600,10 @@ raise ValueError()
             def entry():
                 func1()
         """)
-        excinfo = py.test.raises(ValueError, mod.entry)
+        try:
+            mod.entry()
+        except ValueError:
+            excinfo = py.code.ExceptionInfo()
         from py._code.code import Code
         monkeypatch.setattr(Code, 'path', 'bogus')
         excinfo.traceback[0].frame.code.path = "bogus"
@@ -720,7 +723,10 @@ raise ValueError()
             def entry():
                 f(0)
         """)
-        excinfo = py.test.raises(ValueError, mod.entry)
+        try:
+            mod.entry()
+        except ValueError:
+            excinfo = py.code.ExceptionInfo()
 
         for style in ("short", "long", "no"):
             for showlocals in (True, False):
@@ -761,6 +767,56 @@ raise ValueError()
         assert tw.lines[8] == "E       ValueError: 3"
         assert tw.lines[9] == ""
         assert tw.lines[10].endswith("mod.py:3: ValueError")
+
+    def test_toterminal_long_missing_source(self, importasmod, tmpdir):
+        mod = importasmod("""
+            def g(x):
+                raise ValueError(x)
+            def f():
+                g(3)
+        """)
+        excinfo = py.test.raises(ValueError, mod.f)
+        tmpdir.join('mod.py').remove()
+        excinfo.traceback = excinfo.traceback.filter()
+        repr = excinfo.getrepr()
+        tw = TWMock()
+        repr.toterminal(tw)
+        assert tw.lines[0] == ""
+        tw.lines.pop(0)
+        assert tw.lines[0] == ">   ???"
+        assert tw.lines[1] == ""
+        assert tw.lines[2].endswith("mod.py:5: ")
+        assert tw.lines[3] == ("_ ", None)
+        assert tw.lines[4] == ""
+        assert tw.lines[5] == ">   ???"
+        assert tw.lines[6] == "E   ValueError: 3"
+        assert tw.lines[7] == ""
+        assert tw.lines[8].endswith("mod.py:3: ValueError")
+
+    def test_toterminal_long_incomplete_source(self, importasmod, tmpdir):
+        mod = importasmod("""
+            def g(x):
+                raise ValueError(x)
+            def f():
+                g(3)
+        """)
+        excinfo = py.test.raises(ValueError, mod.f)
+        tmpdir.join('mod.py').write('asdf')
+        excinfo.traceback = excinfo.traceback.filter()
+        repr = excinfo.getrepr()
+        tw = TWMock()
+        repr.toterminal(tw)
+        assert tw.lines[0] == ""
+        tw.lines.pop(0)
+        assert tw.lines[0] == ">   ???"
+        assert tw.lines[1] == ""
+        assert tw.lines[2].endswith("mod.py:5: ")
+        assert tw.lines[3] == ("_ ", None)
+        assert tw.lines[4] == ""
+        assert tw.lines[5] == ">   ???"
+        assert tw.lines[6] == "E   ValueError: 3"
+        assert tw.lines[7] == ""
+        assert tw.lines[8].endswith("mod.py:3: ValueError")
 
     def test_toterminal_long_filenames(self, importasmod):
         mod = importasmod("""
