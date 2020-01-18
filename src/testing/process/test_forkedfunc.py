@@ -1,6 +1,8 @@
+import pytest
 import py, sys, os
 
 pytestmark = py.test.mark.skipif("not hasattr(os, 'fork')")
+
 
 def test_waitfinish_removes_tempdir():
     ff = py.process.ForkedFunc(boxf1)
@@ -49,6 +51,21 @@ def test_forkedfunc_on_fds():
     assert result.exitstatus == 0
     assert result.signal == 0
     assert result.retval == 2
+
+def test_forkedfunc_on_fds_output():
+    result = py.process.ForkedFunc(boxf3).waitfinish()
+    assert result.signal == 11
+    assert result.out == "s"
+
+
+def test_forkedfunc_on_stdout():
+    def boxf3():
+        import sys
+        sys.stdout.write("hello\n")
+        os.kill(os.getpid(), 11)
+    result = py.process.ForkedFunc(boxf3).waitfinish()
+    assert result.signal == 11
+    assert result.out == "hello\n"
 
 def test_forkedfunc_signal():
     result = py.process.ForkedFunc(boxseg).waitfinish()
@@ -104,6 +121,26 @@ def test_kill_func_forked():
     assert result.signal == 15
 
 
+def test_hooks(monkeypatch):
+    def _boxed():
+        return 1
+
+    def _on_start():
+        sys.stdout.write("some out\n")
+        sys.stdout.flush()
+
+    def _on_exit():
+        sys.stderr.write("some err\n")
+        sys.stderr.flush()
+
+    result = py.process.ForkedFunc(_boxed, child_on_start=_on_start,
+                                   child_on_exit=_on_exit).waitfinish()
+    assert result.out == "some out\n"
+    assert result.err == "some err\n"
+    assert result.exitstatus == 0
+    assert result.signal == 0
+    assert result.retval == 1
+
 
 # ======================================================================
 # examples
@@ -119,6 +156,10 @@ def boxf2():
     os.write(1, "someout".encode('ascii'))
     os.write(2, "someerr".encode('ascii'))
     return 2
+
+def boxf3():
+    os.write(1, "s".encode('ascii'))
+    os.kill(os.getpid(), 11)
 
 def boxseg():
     os.kill(os.getpid(), 11)

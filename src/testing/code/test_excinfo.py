@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import py
 from py._code.code import FormattedExcinfo, ReprExceptionInfo
@@ -12,6 +13,9 @@ except ImportError:
     invalidate_import_caches = None
 else:
     invalidate_import_caches = getattr(importlib, "invalidate_caches", None)
+
+import pytest
+pytest_version_info = tuple(map(int, pytest.__version__.split(".")[:3]))
 
 class TWMock:
     def __init__(self):
@@ -145,6 +149,17 @@ class TestTraceback_f_g_h:
         traceback = excinfo.traceback
         recindex = traceback.recursionindex()
         assert recindex == 3
+
+    def test_traceback_only_specific_recursion_errors(self, monkeypatch):
+        def f(n):
+            if n == 0:
+                raise RuntimeError("hello")
+            f(n-1)
+
+        excinfo = pytest.raises(RuntimeError, f, 100)
+        monkeypatch.delattr(excinfo.traceback.__class__, "recursionindex")
+        repr = excinfo.getrepr()
+        assert "RuntimeError: hello" in str(repr.reprcrash)
 
     def test_traceback_no_recursion_index(self):
         def do_stuff():
@@ -385,6 +400,8 @@ raise ValueError()
         pr = FormattedExcinfo()
 
         class FakeCode(object):
+            class raw:
+                co_filename = '?'
             path = '?'
             firstlineno = 5
 
@@ -395,11 +412,15 @@ raise ValueError()
         class FakeFrame(object):
             code = FakeCode()
             f_locals = {}
+            f_globals = {}
 
         class FakeTracebackEntry(py.code.Traceback.Entry):
             def __init__(self, tb):
-                self.frame = FakeFrame()
                 self.lineno = 5+3
+
+            @property
+            def frame(self):
+                return FakeFrame()
 
         class Traceback(py.code.Traceback):
             Entry = FakeTracebackEntry
@@ -527,7 +548,7 @@ raise ValueError()
         reprtb = p.repr_traceback_entry(excinfo.traceback[-2])
         lines = reprtb.lines
         basename = py.path.local(mod.__file__).basename
-        assert lines[0] == '>       func1()'
+        assert lines[0] == '    func1()'
         assert basename in str(reprtb.reprfileloc.path)
         assert reprtb.reprfileloc.lineno == 5
 
@@ -535,8 +556,8 @@ raise ValueError()
         p = FormattedExcinfo(style="short")
         reprtb = p.repr_traceback_entry(excinfo.traceback[-1], excinfo)
         lines = reprtb.lines
-        assert lines[0] == '>       raise ValueError("hello")'
-        assert lines[1] == 'E       ValueError: hello'
+        assert lines[0] == '    raise ValueError("hello")'
+        assert lines[1] == 'E   ValueError: hello'
         assert basename in str(reprtb.reprfileloc.path)
         assert reprtb.reprfileloc.lineno == 3
 
@@ -591,10 +612,10 @@ raise ValueError()
         last_lines = last_reprtb.lines
         monkeypatch.undo()
         basename = py.path.local(mod.__file__).basename
-        assert lines[0] == '>       func1()'
+        assert lines[0] == '    func1()'
 
-        assert last_lines[0] == '>       raise ValueError("hello")'
-        assert last_lines[1] == 'E       ValueError: hello'
+        assert last_lines[0] == '    raise ValueError("hello")'
+        assert last_lines[1] == 'E   ValueError: hello'
 
     def test_repr_traceback_and_excinfo(self, importasmod):
         mod = importasmod("""
@@ -707,6 +728,14 @@ raise ValueError()
                 assert isinstance(repr, ReprExceptionInfo)
                 assert repr.reprtraceback.style == style
 
+    def test_reprexcinfo_unicode(self):
+        from py._code.code import TerminalRepr
+        class MyRepr(TerminalRepr):
+            def toterminal(self, tw):
+                tw.line(py.builtin._totext("я", "utf-8"))
+        x = py.builtin._totext(MyRepr())
+        assert x == py.builtin._totext("я", "utf-8")
+
     def test_toterminal_long(self, importasmod):
         mod = importasmod("""
             def g(x):
@@ -791,3 +820,40 @@ raise ValueError()
         # python 2.4 fails to get the source line for the assert
         if py.std.sys.version_info >= (2, 5):
             assert s.count('assert 0') == 2
+
+    def test_traceback_repr_style(self, importasmod):
+        mod = importasmod("""
+            def f():
+                g()
+            def g():
+                h()
+            def h():
+                i()
+            def i():
+                raise ValueError()
+        """)
+        excinfo = py.test.raises(ValueError, mod.f)
+        excinfo.traceback = excinfo.traceback.filter()
+        excinfo.traceback[1].set_repr_style("short")
+        excinfo.traceback[2].set_repr_style("short")
+        r = excinfo.getrepr(style="long")
+        tw = TWMock()
+        r.toterminal(tw)
+        for line in tw.lines: print (line)
+        assert tw.lines[0] == ""
+        assert tw.lines[1] == "    def f():"
+        assert tw.lines[2] == ">       g()"
+        assert tw.lines[3] == ""
+        assert tw.lines[4].endswith("mod.py:3: ")
+        assert tw.lines[5] == ("_ ", None)
+        assert tw.lines[6].endswith("in g")
+        assert tw.lines[7] == "    h()"
+        assert tw.lines[8].endswith("in h")
+        assert tw.lines[9] == "    i()"
+        assert tw.lines[10] == ("_ ", None)
+        assert tw.lines[11] == ""
+        assert tw.lines[12] == "    def i():"
+        assert tw.lines[13] == ">       raise ValueError()"
+        assert tw.lines[14] == "E       ValueError"
+        assert tw.lines[15] == ""
+        assert tw.lines[16].endswith("mod.py:9: ValueError")

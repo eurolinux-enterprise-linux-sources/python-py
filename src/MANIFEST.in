@@ -1,7 +1,7 @@
 include CHANGELOG
+include AUTHORS
 include README.txt
 include setup.py
-include distribute_setup.py
 include LICENSE
 include conftest.py
 include tox.ini

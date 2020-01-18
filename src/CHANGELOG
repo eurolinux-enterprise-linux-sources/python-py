@@ -1,3 +1,167 @@
+1.4.27
+==================================================
+
+- fix issue59: point to new repo site
+
+- allow a new ensuresyspath="append" mode for py.path.local.pyimport()
+  so that a neccessary import path is appended instead of prepended to
+  sys.path 
+
+- strike undocumented, untested argument to py.path.local.pypkgpath
+
+- speed up py.path.local.dirpath by a factor of 10
+
+1.4.26
+==================================================
+
+- avoid calling normpath twice in py.path.local
+
+- py.builtin._reraise properly reraises under Python3 now.
+
+- fix issue53 - remove module index, thanks jenisys.
+
+- allow posix path separators when "fnmatch" is called.
+  Thanks Christian Long for the complete PR.
+
+1.4.25
+==================================================
+
+- fix issue52: vaguely fix py25 compat of py.path.local (it's not
+  officially supported), also fix docs
+
+- fix pytest issue 589: when checking if we have a recursion error
+  check for the specific "maximum recursion depth" text of the exception.
+
+1.4.24
+==================================================
+
+- Fix retrieving source when an else: line has an other statement on
+  the same line.
+
+- add localpath read_text/write_text/read_bytes/write_bytes methods
+  as shortcuts and clearer bytes/text interfaces for read/write.
+  Adapted from a PR from Paul Moore.
+
+
+1.4.23
+==================================================
+
+- use newer apipkg version which makes attribute access on
+  alias modules resolve to None rather than an ImportError.
+  This helps with code that uses inspect.getframeinfo()
+  on py34 which causes a complete walk on sys.modules
+  thus triggering the alias module to resolve and blowing
+  up with ImportError.  The negative side is that something
+  like "py.test.X" will now result in None instead of "importerror: pytest"
+  if pytest is not installed.  But you shouldn't import "py.test" 
+  anyway anymore.
+
+- adapt one svn test to only check for any exception instead 
+  of specific ones because different svn versions cause different
+  errors and we don't care.
+
+
+1.4.22
+==================================================
+
+- refactor class-level registry on ForkedFunc child start/finish
+  event to become instance based (i.e. passed into the constructor)
+
+1.4.21
+==================================================
+
+- ForkedFunc now has class-level register_on_start/on_exit()
+  methods to allow adding information in the boxed process.
+  Thanks Marc Schlaich.
+
+- ForkedFunc in the child opens in "auto-flush" mode for
+  stdout/stderr so that when a subprocess dies you can see
+  its output even if it didn't flush itself.
+
+- refactor traceback generation in light of pytest issue 364
+  (shortening tracebacks).   you can now set a new traceback style 
+  on a per-entry basis such that a caller can force entries to be 
+  isplayed as short or long entries.
+
+- win32: py.path.local.sysfind(name) will preferrably return files with
+  extensions so that if "X" and "X.bat" or "X.exe" is on the PATH,
+  one of the latter two will be returned.
+
+1.4.20
+==================================================
+
+- ignore unicode decode errors in xmlescape.  Thanks Anatoly Bubenkoff.
+
+- on python2 modify traceback.format_exception_only to match python3 
+  behaviour, namely trying to print unicode for Exception instances
+
+- use a safer way for serializing exception reports (helps to fix
+  pytest issue413)
+
+Changes between 1.4.18 and 1.4.19
+==================================================
+
+- merge in apipkg fixes
+
+- some micro-optimizations in py/_code/code.py for speeding
+  up pytest runs.  Thanks Alex Gaynor for initiative.
+
+- check PY_COLORS=1 or PY_COLORS=0 to force coloring/not-coloring
+  for py.io.TerminalWriter() independently from capabilities
+  of the output file.  Thanks Marc Abramowitz for the PR.
+
+- some fixes to unicode handling in assertion handling.
+  Thanks for the PR to Floris Bruynooghe.  (This helps
+  to fix pytest issue 319).
+
+- depend on setuptools presence, remove distribute_setup
+
+Changes between 1.4.17 and 1.4.18
+==================================================
+
+- introduce path.ensure_dir() as a synonym for ensure(..., dir=1)
+
+- some unicode/python3 related fixes wrt to path manipulations
+  (if you start passing unicode particular in py2 you might 
+  still get problems, though)
+
+Changes between 1.4.16 and 1.4.17
+==================================================
+
+- make py.io.TerminalWriter() prefer colorama if it is available
+  and avoid empty lines when separator-lines are printed by
+  being defensive and reducing the working terminalwidth by 1
+
+- introduce optional "expanduser" argument to py.path.local
+  to that local("~", expanduser=True) gives the home
+  directory of "user".
+
+Changes between 1.4.15 and 1.4.16
+==================================================
+
+- fix issue35 - define __gt__ ordering between a local path
+  and strings
+
+- fix issue36 - make chdir() work even if os.getcwd() fails.
+
+- add path.exists/isdir/isfile/islink shortcuts
+
+- introduce local path.as_cwd() context manager.
+
+- introduce p.write(ensure=1) and p.open(ensure=1)
+  where ensure triggers creation of neccessary parent
+  dirs.
+
+
+Changes between 1.4.14 and 1.4.15
+==================================================
+
+- majorly speed up some common calling patterns with
+  LocalPath.listdir()/join/check/stat functions considerably.
+
+- fix an edge case with fnmatch where a glob style pattern appeared
+  in an absolute path.
+
 Changes between 1.4.13 and 1.4.14
 ==================================================
 

@@ -18,8 +18,8 @@
 %global pytest_version 2.3.1
 
 Name:           python-py
-Version:        1.4.14
-Release:        4%{?dist}
+Version:        1.4.27
+Release:        1%{?dist}
 Summary:        Library with cross-python path, ini-parsing, io, code, log facilities
 Group:          Development/Languages
 License:        MIT and Public Domain
@@ -164,6 +164,10 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Mon May 11 2015 Matej Stuchlik <mstuchli@redhat.com> - 1.4.27-1
+- Updated to 1.4.27
+Resolves: rhbz#1219480
+
 * Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 1.4.14-4
 - Mass rebuild 2013-12-27
 
