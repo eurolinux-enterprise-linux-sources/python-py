@@ -19,7 +19,7 @@
 
 Name:           python-py
 Version:        1.4.14
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Library with cross-python path, ini-parsing, io, code, log facilities
 Group:          Development/Languages
 License:        MIT and Public Domain
@@ -164,6 +164,9 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 1.4.14-4
+- Mass rebuild 2013-12-27
+
 * Tue Jun 18 2013 Endi S. Dewata <edewata@redhat.com> - 1.4.14-3
 - Disabled pytest dependency for RHEL 7.
 
